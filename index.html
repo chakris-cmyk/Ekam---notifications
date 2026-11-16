@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekam Notifications</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #fff; --fg: #16202a; --muted: #5c6977; --line: #dde2e8; --grid: #eceff3;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+    --ink4: #0b0b0b; --warn: #fab219; --serious: #ec835a; --ph: #e6eefb; --ph-line: #c5d6f3;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; --serif: Georgia, "Times New Roman", serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161c; --panel: #1a2029; --fg: #e8ecf1; --muted: #9aa6b4; --line: #2c3541; --grid: #242c36;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767;
+      --ink4: #fff; --ph: #22314a; --ph-line: #34486b; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c; --panel: #1a2029; --fg: #e8ecf1; --muted: #9aa6b4; --line: #2c3541; --grid: #242c36;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767;
+    --ink4: #fff; --ph: #22314a; --ph-line: #34486b; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--sans); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding-block: 22px 36px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+  header h1 { font: 400 2rem/1.15 var(--serif); margin: 0; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  footer { font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; margin-top: 10px; }
+
+  /* Top bar: tabs */
+  .bar-top { position: sticky; top: 0; z-index: 20; background: var(--bg); padding-top: 6px; display: flex; align-items: flex-end; gap: 14px; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; flex: 1; min-width: 0; }
+  .tabs button { font-size: 13.5px; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 12px; cursor: pointer; white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 6px; }
+  .tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); font-weight: 600; }
+  .tabs button:focus-visible { outline-offset: -2px; }
+
+  /* Shared pieces */
+  .tabpanel { display: flex; flex-direction: column; gap: 26px; }
+  section { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: var(--stick, 70px); }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  h2 small { font-size: .8rem; font-weight: 400; color: var(--muted); }
+  h3 { font-size: .95rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .tile { width: 30px; height: 30px; border-radius: 9px; display: inline-grid; place-items: center; flex: none; color: #fff; }
+  .tile svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tile.sm { width: 20px; height: 20px; border-radius: 6px; } .tile.sm svg { width: 12px; height: 12px; }
+  .tile.lg { width: 40px; height: 40px; border-radius: 12px; } .tile.lg svg { width: 21px; height: 21px; }
+  .tile[data-f="greetings"] { color: var(--ink4); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .m { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .lnk { font: inherit; color: var(--s1); background: none; border: 0; padding: 0; cursor: pointer; font-weight: 600; text-align: left; }
+  .lnk:hover { text-decoration: underline; }
+  .btn { font-size: 12.5px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn .c { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .btn.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .btn.on .c { color: inherit; opacity: .7; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Overview */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .kpi .k { font-size: 12px; color: var(--muted); }
+  .kpi .v { font: 400 1.7rem/1.15 var(--serif); font-variant-numeric: tabular-nums; }
+  .kpi .n { font-size: 11.5px; color: var(--muted); }
+  .fcards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .fcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer; min-width: 0; }
+  .fcard:hover { border-color: var(--fg); }
+  .fc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .fc-n { font: 400 1.6rem/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .fc-name { font-weight: 600; }
+  .fc-sub { font-size: 12px; color: var(--muted); }
+  .fc-tap { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+  .slot { display: grid; grid-template-columns: 92px 1fr auto; gap: 8px 14px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .slot:first-child { padding-top: 0; } .slot:last-child { border-bottom: 0; padding-bottom: 0; }
+  .slot .tm { font: 400 1.1rem/1.25 var(--serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .slot .tm.txt { font: 600 12.5px/1.3 var(--sans); white-space: normal; }
+  .chipset, .vrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .vrow + .vrow { margin-top: 8px; }
+  .grp-l { font-size: 12px; color: var(--muted); width: 120px; flex: none; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  .chip small { color: var(--muted); font-size: 11.5px; }
+  .flag { font-size: 11.5px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .flag i { width: 8px; height: 8px; border-radius: 50%; }
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .day { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12.5px; }
+  .day .dn { font-weight: 600; font-size: 13px; }
+  .day .dg { color: var(--muted); }
+  .day .chip { display: block; align-self: flex-start; margin-top: 4px; border-radius: 10px; }
+  .day .chip .dot { margin-right: 6px; }
+  .day .chip small { display: block; }
+  .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .st-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .step .d { font: 400 1.15rem/1.2 var(--serif); }
+  .step .w { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+  .step .nm { font-size: 13px; font-weight: 600; }
+  .step .o { font-size: 12px; color: var(--muted); }
+
+  /* Notifications */
+  .pick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pick button { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 5px; cursor: pointer; white-space: nowrap; }
+  .pick button.all { padding-left: 13px; }
+  .pick .c { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pick button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .pick button[aria-pressed="true"] .c { color: inherit; opacity: .7; }
+  .tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: -14px; font-size: 12.5px; color: var(--muted); }
+  .tools b { color: var(--fg); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); padding: 2px; margin-left: auto; }
+  .seg button { font-size: 12px; border: 0; background: none; border-radius: 999px; padding: 3px 11px; cursor: pointer; color: var(--muted); }
+  .seg button.on { background: var(--fg); color: var(--bg); }
+  .cat { display: flex; flex-direction: column; gap: 36px; }
+  .feature { gap: 18px; }
+  .fhead { display: flex; align-items: center; gap: 12px; }
+  .fhead .lead { margin: 1px 0 0; font-size: 13px; color: var(--muted); }
+  .fmeta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: -8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .rule { margin: -6px 0 0; font-size: 12.5px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; }
+  .type { display: flex; flex-direction: column; gap: 8px; scroll-margin-top: var(--stick, 70px); }
+  .type-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+  .note { font-size: 12.5px; color: var(--muted); margin: -2px 0 0; }
+  .pushes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .push { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px 7px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .push-top { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); min-height: 20px; }
+  .tag { margin-left: auto; font-size: 11px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .push-t { font-weight: 600; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+  .push-b { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; flex: 1; }
+  .push-f { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+  .push-f code { font-size: 10.5px; color: var(--muted); letter-spacing: .02em; }
+  .copy { background: none; border: 0; cursor: pointer; padding: 5px; border-radius: 6px; color: var(--muted); display: inline-grid; }
+  .copy:hover { color: var(--fg); background: var(--bg); }
+  .ph { font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: .86em; font-weight: 400; background: var(--ph); border: 1px solid var(--ph-line); border-radius: 4px; padding: 0 3px; white-space: nowrap; }
+  .ex { background: var(--ph); border-radius: 4px; padding: 0 3px; }
+
+  /* Tables */
+  .tw { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .tw table { min-width: 720px; }
+  th, td { padding: 8px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.nw { white-space: nowrap; }
+  td.mut { color: var(--muted); }
+  td .m { color: inherit; font-size: inherit; }
+  td .m .ic { color: var(--muted); }
+  tr.grp td { background: var(--bg); color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  tr.grp .dot { margin-right: 7px; vertical-align: -1px; }
+
+  /* New-notification form */
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; margin-bottom: 6px; flex: none; }
+  dialog { border: 1px solid var(--line); border-radius: 16px; padding: 0; background: var(--panel); color: var(--fg); width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 24px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(10, 14, 20, .45); }
+  .nf { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }
+  .nf-head { display: flex; justify-content: space-between; align-items: center; }
+  .nf-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; }
+  .nf-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .nf-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fld { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .fld-h { display: flex; justify-content: space-between; gap: 8px; }
+  .fld-h b { color: var(--fg); font-variant-numeric: tabular-nums; }
+  .fld input, .fld select, .fld textarea { font: inherit; font-size: 13.5px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
+  .fld textarea { resize: vertical; min-height: 76px; }
+  .fld select:disabled { opacity: .6; }
+  .newtype { display: flex; flex-direction: column; gap: 10px; border-left: 3px solid var(--line); padding-left: 12px; }
+  .phs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .phs button { font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: 11px; color: var(--fg); background: var(--ph); border: 1px solid var(--ph-line); border-radius: 4px; padding: 1px 5px; cursor: pointer; }
+  .nf-prev { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; align-self: start; font-size: 12px; color: var(--muted); }
+  .nf-prev .push { color: var(--fg); }
+  .ghost { color: var(--muted); font-weight: 400; }
+  .nf-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .nf-foot .hint { margin-right: auto; font-size: 12px; color: var(--muted); }
+  .tag.new { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .tag + .tag { margin-left: 0; }
+  .acts { display: inline-flex; gap: 2px; }
+  .flash { outline: 3px solid var(--s1); outline-offset: 3px; }
+  @media (max-width: 700px) { .nf-grid { grid-template-columns: 1fr; } #add-btn { align-self: flex-start; margin: 0; } }
+
+  @media (max-width: 900px) { .fcards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } .steps { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    .bar-top { position: static; flex-direction: column-reverse; align-items: stretch; gap: 8px; border-bottom: 0; padding-top: 0; }
+    .tabs { border-bottom: 1px solid var(--line); }
+    .pick { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .pick button { flex: none; }
+    section, .type { scroll-margin-top: 12px; }
+    .grp-l { width: 100%; }
+  }
+  @media (max-width: 560px) {
+    .slot { grid-template-columns: 88px 1fr; } .slot .flag { grid-column: 2; justify-self: start; }
+    .slot .chip { flex-wrap: wrap; row-gap: 0; border-radius: 10px; } .slot .chip small { flex-basis: 100%; margin-left: 15px; }
+  }
+  @media (max-width: 480px) { header h1 { font-size: 1.6rem; } .kpi .v { font-size: 1.4rem; } }
+  @media print {
+    .bar-top { position: static; } .tabs, .pick, .tools, .copy, #f-kind, #add-btn { display: none !important; }
+    .tabpanel[hidden], .feature[hidden] { display: flex !important; } .card, .push, .day, .step { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ekam Notifications</h1>
+    <p id="sub"></p>
+  </header>
+
+  <div class="bar-top" id="bar-top">
+    <div class="tabs" role="tablist" aria-label="Pages" id="tabs">
+      <button type="button" role="tab" data-tab="overview">Overview</button>
+      <button type="button" role="tab" data-tab="notifications">Notifications</button>
+      <button type="button" role="tab" data-tab="schedule">Schedule</button>
+    </div>
+    <button type="button" class="btn primary" id="add-btn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New notification</button>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
+  <div class="tabpanel" role="tabpanel" data-panel="overview">
+    <div class="kpis" id="k-overview"></div>
+    <section>
+      <h2>Features</h2>
+      <div class="fcards" id="fcards"></div>
+    </section>
+    <section>
+      <h2>A day <small>what goes out, and when</small></h2>
+      <div class="card" id="agenda"></div>
+    </section>
+    <section>
+      <h2>A week <small>the morning greeting, plus weekly sends</small></h2>
+      <div class="week" id="week-grid"></div>
+    </section>
+    <section>
+      <h2>A new user's first 10 days</h2>
+      <div class="steps" id="steps"></div>
+    </section>
+  </div>
+
+  <!-- ============ NOTIFICATIONS ============ -->
+  <div class="tabpanel" role="tabpanel" data-panel="notifications" hidden>
+    <div class="pick" id="pick" role="group" aria-label="Feature"></div>
+    <div class="tools">
+      <span id="note"></span>
+      <div class="seg" id="f-mode" role="group" aria-label="Copy shows">
+        <button type="button" class="on" data-mode="ex">Sample values</button>
+        <button type="button" data-mode="ph">Placeholders</button>
+      </div>
+    </div>
+    <div class="cat" id="cat"></div>
+  </div>
+
+  <!-- ============ SCHEDULE ============ -->
+  <div class="tabpanel" role="tabpanel" data-panel="schedule" hidden>
+    <section>
+      <div class="presets" id="f-kind" role="group" aria-label="Trigger"></div>
+      <div class="tw"><table id="t-sched"><thead></thead><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-h">
+  <form id="nf" class="nf">
+    <div class="nf-head">
+      <h2 id="dlg-h">New notification</h2>
+      <button type="button" class="copy" id="nf-close" aria-label="Close"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="nf-grid">
+      <div class="nf-fields">
+        <div class="nf-two">
+          <label class="fld">Feature<select id="nf-feature"></select></label>
+          <label class="fld">Type<select id="nf-type"></select></label>
+        </div>
+        <div class="newtype" id="nf-newtype" hidden>
+          <label class="fld">Type name<input id="nf-tname" maxlength="60" placeholder="e.g. Ekadashi reminder" autocomplete="off"></label>
+          <div class="nf-two">
+            <label class="fld">Trigger<select id="nf-tkind"></select></label>
+            <label class="fld">When it goes out<input id="nf-twhen" maxlength="80" placeholder="e.g. Daily · 8:00 PM" autocomplete="off"></label>
+          </div>
+          <label class="fld">Tap opens<input id="nf-topens" maxlength="80" placeholder="Leave empty to use the feature's screen" autocomplete="off"></label>
+        </div>
+        <label class="fld"><span class="fld-h">Title <span><b id="nf-tc">0</b> characters</span></span><input id="nf-title" required maxlength="120" autocomplete="off"></label>
+        <label class="fld"><span class="fld-h">Body <span><b id="nf-bc">0</b> characters</span></span><textarea id="nf-body" required rows="3" maxlength="300"></textarea></label>
+        <div class="fld">Insert a value that changes per person or day<div class="phs" id="nf-phs"></div></div>
+        <div class="nf-two">
+          <label class="fld">Note (optional)<input id="nf-tag" maxlength="40" placeholder="e.g. Lord Shiva" autocomplete="off"></label>
+          <label class="fld">Written by<input id="nf-by" maxlength="40" autocomplete="off"></label>
+        </div>
+      </div>
+      <div class="nf-prev">Preview<div id="nf-preview"></div></div>
+    </div>
+    <div class="nf-foot">
+      <span class="hint" id="nf-hint"></span>
+      <button type="button" class="btn" id="nf-cancel">Cancel</button>
+      <button type="submit" class="btn on" id="nf-save">Save notification</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+'use strict';
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const n = (t, b, o) => Object.assign({ t: t, b: b }, o || {});
+const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
+
+const SPEC_DATE = '16 Nov 2026';
+const KINDS = { fixed: 'Fixed time', event: 'Event-based', lifecycle: 'Days since signup', user: 'User-set time', activity: 'In-app activity', unset: 'Timing not set' };
+
+/* Placeholder: [what it is filled with, example value] */
+const PH = {
+  first_name: ["The person's first name", 'Ananya'],
+  day_begins_time: ["Start of the person's day in Rashi Phal", '6:22 AM'],
+  tithi_name: ['The Tithi that has just begun', 'Ekadashi'],
+  nakshatra_name: ['The Nakshatra that has just begun', 'Rohini'],
+  rahu_kaal_end: ["End time of today's Rahu Kaal", '1:30 PM'],
+  abhijit_start: ["Start time of today's Abhijit Muhurat", '11:48 AM'],
+  muhurat_name: ['Name of the Muhurat', 'Amrit Kaal'],
+  muhurat_start: ['Start time of that Muhurat', '4:12 PM'],
+  sunrise_time: ["Today's sunrise time", '6:22 AM'],
+  sunset_time: ["Today's sunset time", '5:41 PM'],
+  lucky_hour_start: ["Start of the person's Lucky Hour", '10:15 AM'],
+  lucky_hour_end: ["End of the person's Lucky Hour", '11:15 AM'],
+  go_gentle_start: ['Start of the Go Gentle period', '3:00 PM'],
+  deity_name: ["Deity of today's mantra", 'Shiva'],
+  mantra_name: ["Name of today's mantra", 'Gayatri Mantra'],
+  japa_name: ['The Japa the person selected', 'Om Namah Shivaya'],
+  chant_count: ['Chants completed so far', '108']
+};
+
+const ALL_USERS = 'All users';
+const WITH_BIRTH = 'Users who have added their birth details';
+const NO_BIRTH = 'Users who have not added their birth details';
+
+const FEATURES = [
+  {
+    id: 'panchang', name: 'Panchang', cadence: 'Daily 7:00 AM, plus event-based',
+    purpose: "Helps users understand today's important Panchang details and reminds them about important timings through the day.",
+    tap: 'Full Panchang screen, with the item named in the notification highlighted',
+    types: [
+      { id: 'PAN-DAILY', name: 'Daily Panchang', kind: 'fixed', daily: true, when: 'Daily · 7:00 AM', who: ALL_USERS, opens: "Full Panchang · today's complete Panchang", key: ['panchang', '(none: whole screen)'], v: [
+        n("🙏 Today's Panchang is here!", "Check today's Tithi, Nakshatra, Rahu Kaal and auspicious timings before starting your day."),
+        n("🌞 Know today's important timings", "Your daily Panchang is ready. Check today's Tithi, Yoga, Nakshatra and Muhurat."),
+        n("📅 What is special about today?", "Discover today's Tithi, Nakshatra and good timings with Ekam.")
+      ] },
+      { id: 'PAN-TITHI', name: 'Tithi', kind: 'event', daily: true, when: 'Whenever a new Tithi begins', who: ALL_USERS, opens: 'Full Panchang · Tithi highlighted', key: ['panchang', 'tithi'], v: [
+        n("🙏 Today's Tithi has changed!", "Today is {tithi_name}. Tap to check its timings and significance."),
+        n("🌸 Know today's Tithi", "{tithi_name} is active now. Check its timings in today's Panchang.")
+      ] },
+      { id: 'PAN-NAK', name: 'Nakshatra', kind: 'event', daily: true, when: 'Whenever a new Nakshatra begins', who: ALL_USERS, opens: 'Full Panchang · Nakshatra highlighted', key: ['panchang', 'nakshatra'], v: [
+        n("🌟 Today's Nakshatra is {nakshatra_name}", "Check the Nakshatra timings and know what makes today special."),
+        n("✨ A new Nakshatra has started!", "{nakshatra_name} is active now. Explore its timings in today's Panchang.")
+      ] },
+      { id: 'PAN-RAHU', name: 'Rahu Kaal', kind: 'event', daily: true, when: 'At the beginning of Rahu Kaal', who: ALL_USERS, opens: 'Full Panchang · Rahu Kaal highlighted', key: ['panchang', 'rahu_kaal'], v: [
+        n("⚠️ Rahu Kaal has started", "Until {rahu_kaal_end}. Avoid starting new important activities during this time."),
+        n("🙏 Rahu Kaal is active now", "Check today's Rahu Kaal timings and plan your activities accordingly.")
+      ] },
+      { id: 'PAN-ABHI', name: 'Abhijit Muhurat', kind: 'event', daily: true, before: true, when: 'Before Abhijit Muhurat begins', who: ALL_USERS, opens: 'Full Panchang · Abhijit Muhurat highlighted', key: ['panchang', 'abhijit_muhurat'], v: [
+        n("✨ Abhijit Muhurat is coming!", "The favourable time starts at {abhijit_start}. Check today's Muhurat timings."),
+        n("🌸 A good time is approaching!", "Abhijit Muhurat begins at {abhijit_start}. Tap to see the complete timings.")
+      ] },
+      { id: 'PAN-MUH', name: 'Other important Muhurat', kind: 'event', daily: true, before: true, when: 'Before, or when, an important Muhurat begins', who: ALL_USERS, opens: 'Full Panchang · the relevant Muhurat highlighted', key: ['panchang', 'the Muhurat named'],
+        note: 'Variant 1 reads as "before" copy and variant 2 as "at the start" copy, so they are not interchangeable.', v: [
+        n("🙏 {muhurat_name} is starting soon!", "It begins at {muhurat_start}. Check the full timings in today's Panchang.", { tag: 'Before it starts' }),
+        n("✨ Your Panchang timing is here!", "{muhurat_name} is active now. Open Ekam to see its details.", { tag: 'At the start' })
+      ] },
+      { id: 'PAN-SUNRISE', name: 'Sunrise', kind: 'event', daily: true, when: 'At sunrise', who: 'Only users who switched it on', opens: 'Full Panchang · Sunrise highlighted', key: ['panchang', 'sunrise'], v: [
+        n("🌅 A new day begins!", "Today's Sunrise is at {sunrise_time}. Check the complete Panchang for today.")
+      ] },
+      { id: 'PAN-SUNSET', name: 'Sunset', kind: 'event', daily: true, when: 'At sunset', who: 'Only users who switched it on', opens: 'Full Panchang · Sunset highlighted', key: ['panchang', 'sunset'], v: [
+        n("🌇 Today's sunset timing", "The Sun sets at {sunset_time} today. Check today's Panchang for more details.")
+      ] }
+    ]
+  },
+  {
+    id: 'rashi', name: 'Rashi Phal', cadence: 'Daily 6:30 AM, plus event-based through the day',
+    purpose: 'Personalised daily notifications that tell users how their day will go, when to take important decisions and when to be a little careful.',
+    tap: 'Rashi Phal screen, scrolled to and highlighting the section named',
+    types: [
+      { id: 'RP-DAY', name: 'Your Day Begins', kind: 'fixed', daily: true, when: 'Daily · 6:30 AM', who: WITH_BIRTH, opens: 'Rashi Phal · Day Begins highlighted', key: ['rashi_phal', 'day_begins'],
+        note: "The first notification of the day. It tells the person whether the day is favourable, manageable or needs some care, so the variant has to match that person's prediction.", v: [
+        n("☀️ {first_name}, your day begins at {day_begins_time}!", "Today looks workable, but take a little care with important decisions. Check your complete Rashi Phal."),
+        n("🌸 {first_name}, here's how your day looks!", "Your day looks positive overall. A little patience will help you handle things better."),
+        n("🔮 How will your day go today, {first_name}?", "Some things may go your way, while others need care. Check your today's Rashi Phal."),
+        n("✨ Your day has a new beginning!", "A good day for planned activities, but avoid rushing into important decisions.")
+      ] },
+      { id: 'RP-LUCKY', name: 'Lucky Hour', kind: 'event', daily: true, before: true, when: 'Before Lucky Hour', who: WITH_BIRTH, opens: 'Rashi Phal · Lucky Hour highlighted', key: ['rashi_phal', 'lucky_hour'], v: [
+        n("🍀 Your Lucky Hour starts at {lucky_hour_start}!", "This is a favourable time for important work. Make the most of it!"),
+        n("✨ Good things may happen around {lucky_hour_start}!", "Your Lucky Hour is approaching. Check what this time has in store for you."),
+        n("🌟 A favourable time is here!", "Lucky Hour: {lucky_hour_start} – {lucky_hour_end}. Plan something important during this time.")
+      ] },
+      { id: 'RP-MONEY', name: 'Money Matters', kind: 'event', daily: true, before: true, when: 'Before the favourable money period', who: WITH_BIRTH, opens: 'Rashi Phal · Money Matters highlighted', key: ['rashi_phal', 'money_matters'],
+        note: 'Focus: financial decisions, purchases, sales and other money-related activities.', v: [
+        n("💰 It's a good time for money decisions!", "Money Matters look favourable now. Consider planned purchases or financial decisions."),
+        n("💸 Planning to buy or sell something?", "This could be a good time for buying or selling. Check your Rashi Phal for details."),
+        n("💰 Your money hour is here!", "Financial matters look positive during this period. Check your favourable timings."),
+        n("✨ A good time to review your finances!", "Your Money Matters hour is approaching. Check what your Rashi says.")
+      ] },
+      { id: 'RP-GENTLE', name: 'Go Gentle (be careful)', kind: 'event', daily: true, before: true, when: 'Before a period that needs extra care', who: WITH_BIRTH, opens: 'Rashi Phal · Go Gentle highlighted', key: ['rashi_phal', 'go_gentle'], v: [
+        n("⚠️ Take it a little easy around {go_gentle_start}", "This period needs extra patience. Avoid rushing into important decisions."),
+        n("🙏 A little care can make a difference", "Be careful with your words and decisions during this time."),
+        n("🌸 Slow down a little, {first_name}", "Things may need extra attention now. Stay calm and avoid unnecessary risks."),
+        n("⚠️ Not the best time to rush!", "Take your time with important decisions and conversations. Check your Rashi Phal.")
+      ] },
+      { id: 'RP-HEALTH', name: 'Health', kind: 'event', daily: true, before: true, when: 'Before the relevant health guidance period', who: WITH_BIRTH, opens: 'Rashi Phal · Health highlighted', key: ['rashi_phal', 'health'], v: [
+        n("💚 Take care of your health today", "Give yourself some time to rest. Don't ignore your health or skip your routine."),
+        n("🌿 Your health needs a little attention", "Take it easy and avoid unnecessary stress. Check your health guidance for today."),
+        n("💚 A little care goes a long way", "Pay attention to your health and energy levels today. Don't overwork yourself.")
+      ] },
+      { id: 'RP-WORK', name: 'Working Hours', kind: 'event', daily: true, before: true, when: 'Before the favourable or challenging work period', who: WITH_BIRTH, opens: 'Rashi Phal · Working Hours highlighted', key: ['rashi_phal', 'working_hours'],
+        note: 'Variant 3 is the copy for a challenging period. Variants 1, 2 and 4 are for a favourable one.', v: [
+        n("💼 Good time to focus on your work!", "Your working hours look favourable. Focus on important tasks and make good use of this time.", { tag: 'Favourable period' }),
+        n("✨ Your work time is approaching!", "Work-related matters look positive now. Take up tasks that need your attention.", { tag: 'Favourable period' }),
+        n("💼 Take a little care with work today", "Avoid rushing through tasks. Double-check important work before moving ahead.", { tag: 'Challenging period' }),
+        n("🌟 Ready to make progress today?", "Your favourable working hours are here. Focus on your priorities.", { tag: 'Favourable period' })
+      ] },
+      { id: 'RP-EVE', name: 'Evening Falls', kind: 'event', daily: true, when: 'Evening · time comes from the Rashi Phal calculation', who: WITH_BIRTH, opens: 'Rashi Phal · Evening Falls highlighted', key: ['rashi_phal', 'evening_falls'], v: [
+        n("🌇 Your day is coming to an end, {first_name}", "See how your day went and what the evening has in store for you."),
+        n("🌸 How will your evening be?", "Check your evening guidance and know what to expect for the rest of the day."),
+        n("✨ A peaceful evening awaits!", "Take some time for yourself. Check your evening Rashi Phal before winding down."),
+        n("🌙 Before you end your day...", "Check your evening predictions and prepare for tomorrow.")
+      ] }
+    ]
+  },
+  {
+    id: 'birth', name: 'Rashi Phal · before birth details', short: 'Before birth details', cadence: 'Day 2, Day 5 and Day 10',
+    purpose: "Encourages users who haven't added their date of birth and birth details to complete their profile and unlock their personalised Rashi Phal.",
+    rule: "These must not show personalised predictions, lucky hours, money matters or health guidance, because the person's birth details are not available yet.",
+    tap: 'Add Birth Details screen',
+    types: [
+      { id: 'RPO-D2', name: 'Day 2 · create curiosity', kind: 'lifecycle', when: 'Day 2 · 11:00 AM', who: NO_BIRTH, opens: 'Add Birth Details screen', key: ['add_birth_details', ''], v: [
+        n("🔮 {first_name}, want to know how your day looks?", "Add your Date of Birth to discover your personalised Rashi Phal every day."),
+        n("✨ Your daily Rashi Phal is waiting!", "Tell us your birth details and discover what the stars say about your day."),
+        n("🌸 Make your horoscope personal!", "Add your Date of Birth to see your Rashi and daily predictions.")
+      ] },
+      { id: 'RPO-D5', name: 'Day 5 · highlight the benefits', kind: 'lifecycle', when: 'Day 5 · 11:00 AM', who: NO_BIRTH, opens: 'Add Birth Details screen', key: ['add_birth_details', ''], v: [
+        n("☀️ Know your lucky hours every day!", "Add your birth details to discover lucky hours, money matters and daily guidance."),
+        n("💰 When is the right time for important decisions?", "Complete your birth details to explore your personalised Rashi Phal and favourable timings."),
+        n("🔮 Your Rashi has more to tell you!", "Discover your lucky time, work, health and money guidance. Complete your birth details.")
+      ] },
+      { id: 'RPO-D10', name: 'Day 10 · final reminder', kind: 'lifecycle', when: 'Day 10 · 6:00 PM', who: NO_BIRTH, opens: 'Add Birth Details screen', key: ['add_birth_details', ''], v: [
+        n("🌸 {first_name}, your personalised Rashi Phal is waiting!", "Just add your Date of Birth to unlock your daily horoscope on Ekam."),
+        n("✨ Don't miss your daily horoscope!", "Complete your birth details and get daily guidance based on your Rashi."),
+        n("🙏 Let's make Ekam personal for you!", "Add your birth details and discover your daily Rashi Phal, lucky hours and more.")
+      ] }
+    ]
+  },
+  {
+    id: 'greetings', name: 'Daily Greetings', cadence: 'Daily, between 7:00 and 8:30 AM',
+    purpose: "A good-morning greeting image for the God or Goddess of the day, which users can add their name to and share.",
+    tap: "That day's greeting image",
+    types: [
+      { id: 'GRT', name: 'Daily greeting', kind: 'fixed', daily: true, when: 'Daily · between 7:00 and 8:30 AM', who: ALL_USERS, opens: "That day's specific greeting image", key: ['greeting', "id of that day's image"],
+        note: 'Two pieces of copy for each weekday. Saturday has two deities, so the image has to follow the variant.', v: [
+        n("🙏 Start Monday with Lord Shiva's blessings!", "Share this beautiful Shiva Good Morning greeting with your loved ones.", { id: 'GRT-MON-1', tag: 'Monday · Lord Shiva' }),
+        n("🌸 Har Har Mahadev!", "Add your name to this Lord Shiva greeting and share the blessings.", { id: 'GRT-MON-2', tag: 'Monday · Lord Shiva' }),
+        n("🚩 Begin Tuesday with Hanuman's blessings!", "Share this beautiful Hanuman greeting with your family and friends.", { id: 'GRT-TUE-1', tag: 'Tuesday · Lord Hanuman' }),
+        n("🙏 Jai Hanuman!", "Personalise this Hanuman Good Morning image with your name and share it.", { id: 'GRT-TUE-2', tag: 'Tuesday · Lord Hanuman' }),
+        n("🌺 May Lord Ganesha bless your Wednesday!", "Share this beautiful Ganesha greeting with your loved ones.", { id: 'GRT-WED-1', tag: 'Wednesday · Lord Ganesha' }),
+        n("🙏 Start your day with Ganpati Bappa!", "Add your name to this Ganesha greeting and share it.", { id: 'GRT-WED-2', tag: 'Wednesday · Lord Ganesha' }),
+        n("🌸 Begin Thursday with Lord Vishnu's blessings!", "Share this beautiful Vishnu Good Morning greeting with your family.", { id: 'GRT-THU-1', tag: 'Thursday · Lord Vishnu' }),
+        n("🙏 May Lord Vishnu bless your day!", "Personalise this Vishnu greeting with your name and share it.", { id: 'GRT-THU-2', tag: 'Thursday · Lord Vishnu' }),
+        n("🌺 Welcome Friday with Goddess Lakshmi's blessings!", "Share this beautiful Lakshmi greeting and spread happiness.", { id: 'GRT-FRI-1', tag: 'Friday · Goddess Lakshmi' }),
+        n("💛 May Maa Lakshmi bless your home!", "Add your name to this Goddess Lakshmi greeting and share it.", { id: 'GRT-FRI-2', tag: 'Friday · Goddess Lakshmi' }),
+        n("🙏 Begin Saturday with divine blessings!", "Share this beautiful Shani Dev greeting with your loved ones.", { id: 'GRT-SAT-1', tag: 'Saturday · Lord Shani' }),
+        n("🚩 Saturday blessings from Lord Hanuman!", "Personalise this Hanuman greeting and share it with your family.", { id: 'GRT-SAT-2', tag: 'Saturday · Lord Hanuman' }),
+        n("☀️ Start Sunday with Surya Dev's blessings!", "Share this beautiful Surya Dev Good Morning greeting with your loved ones.", { id: 'GRT-SUN-1', tag: 'Sunday · Lord Surya' }),
+        n("🌞 A bright Sunday begins with blessings!", "Add your name to this Surya Dev greeting and share the positivity.", { id: 'GRT-SUN-2', tag: 'Sunday · Lord Surya' })
+      ] }
+    ]
+  },
+  {
+    id: 'mantras', name: 'Mantras and Japa', cadence: 'Daily 6:30 AM, a user-set time, 7:00 PM weekly, and activity-based',
+    purpose: "A daily mantra, reminders for the person's own Japa, discovery of new mantras, and encouragement as their Japa count grows.",
+    tap: 'The specific mantra or Japa named',
+    types: [
+      { id: 'MAN-DAILY', name: 'Daily Mantra', kind: 'fixed', daily: true, when: 'Daily · 6:30 AM', who: ALL_USERS, opens: "Today's specific mantra", key: ['mantra', "id of today's mantra"], v: [
+        n("🙏 Start your day with a divine mantra!", "Listen to today's {deity_name} mantra and begin your morning with devotion."),
+        n("🌸 Today's mantra is waiting for you!", "Chant the {mantra_name} and take a few peaceful moments for prayer."),
+        n("☀️ A little prayer to start your day", "Listen to the {deity_name} mantra and feel the peace of devotion."),
+        n("🙏 Have you chanted today's mantra?", "Your daily mantra is ready. Listen and chant along on Ekam.")
+      ] },
+      { id: 'JAPA-REM', name: 'Japa Reminder', kind: 'user', daily: true, when: 'At the reminder time the person selected', who: 'Users who set a Japa reminder', opens: 'The selected Japa', key: ['japa', 'id of the selected Japa'], v: [
+        n("🙏 It's time for your Japa!", "Continue your {japa_name} Japa. Take a few moments for yourself."),
+        n("🌸 Your daily chanting time is here!", "Start your {japa_name} Japa and continue your prayer."),
+        n("🔔 Don't miss your daily Japa!", "Your Japa count is waiting. Continue chanting where you left off."),
+        n("✨ Take a moment for chanting", "Begin your {japa_name} Japa and spend some time in devotion."),
+        n("🙏 Ready for today's chanting?", "Continue your daily Japa and complete your chanting goal.")
+      ] },
+      { id: 'MAN-DISC', name: 'Mantra Discovery', kind: 'fixed', when: 'Once or twice a week · 7:00 PM', who: "Users who haven't explored specific mantras", opens: "The mentioned deity's mantras", key: ['mantra_list', 'deity named'], v: [
+        n("🎵 Looking for a peaceful mantra?", "Explore beautiful Shiva mantras on Ekam.", { tag: 'Shiva' }),
+        n("🚩 Chant Hanuman's powerful mantra!", "Listen to Hanuman mantras and chant along.", { tag: 'Hanuman' }),
+        n("🌸 Bring Krishna's name into your day", "Explore Krishna mantras and spend a moment in devotion.", { tag: 'Krishna' }),
+        n("🙏 Discover a mantra for your prayers", "Explore mantras of your favourite God on Ekam.", { tag: 'No deity named' })
+      ] },
+      { id: 'JAPA-PROG', name: 'Japa Progress', kind: 'activity', when: "Based on the person's activity and progress", who: 'Users with a Japa in progress', opens: 'Current Japa session', key: ['japa', 'current session'], v: [
+        n("🌟 You're making progress!", "You've completed {chant_count} chants. Keep going!"),
+        n("🙏 Just a few more chants to go!", "Complete your {japa_name} Japa goal for today.")
+      ] },
+      { id: 'JAPA-DONE', name: 'Japa Completion', kind: 'activity', when: "When the day's Japa goal is completed", who: 'Users who complete their Japa goal', opens: 'Japa progress screen', key: ['japa_progress', ''],
+        note: 'Listed as Japa Progress no. 3 in the source; the schedule there gives completion its own trigger and screen.', v: [
+        n("✨ Your daily Japa is complete!", "You've completed {chant_count} chants. Well done!")
+      ] }
+    ]
+  },
+  {
+    id: 'gita', name: 'Gita Guide', cadence: 'Day 3 and Day 7 after signup, then Sundays 7:00 PM',
+    purpose: "Introduces Gita Guide to new users, then brings people back with everyday questions answered through the Bhagavad Gita.",
+    tap: 'Gita Guide. When the notification names a question or topic, that question or topic opens directly',
+    types: [
+      { id: 'GITA-D3', name: 'First discovery', kind: 'lifecycle', when: 'Day 3 after signup', who: 'New users', opens: 'Gita Guide home', key: ['gita_guide', ''], v: [
+        n("🙏 Have something on your mind?", "Ask about life, relationships or difficult decisions. Explore what the Bhagavad Gita teaches."),
+        n("💭 Looking for answers to life's questions?", "Ask Gita Guide and discover simple teachings from Lord Krishna.")
+      ] },
+      { id: 'GITA-D7', name: 'Second discovery', kind: 'lifecycle', when: 'Day 7 after signup', who: 'New users', opens: 'Gita Guide home', key: ['gita_guide', ''], v: [
+        n("✨ What would Lord Krishna say?", "Ask your questions and explore Bhagavad Gita's wisdom in simple words."),
+        n("🌸 A little wisdom can change your day", "Explore Gita Guide and find answers through Lord Krishna's teachings.")
+      ] },
+      { id: 'GITA-WEEK', name: 'Weekly life question', kind: 'fixed', when: 'Every Sunday · 7:00 PM', who: "Users who haven't used Gita Guide in the last 7 days", opens: 'That specific question, inside Gita Guide', key: ['gita_guide', 'id of the question'], v: [
+        n("💭 Why do we worry about the future?", "Discover what the Bhagavad Gita teaches about uncertainty and finding peace."),
+        n("🌸 Why is letting go so difficult?", "Explore Krishna's teachings about attachment and peace of mind."),
+        n("🙏 What is truly in your control?", "Learn why focusing on your actions instead of results matters."),
+        n("💛 Why do good people face difficulties?", "Explore what Lord Krishna teaches about life's challenges."),
+        n("💭 How do you stay calm during difficult times?", "Discover the Gita's teachings on patience and inner peace."),
+        n("✨ Are you worried about what others think?", "Explore what the Bhagavad Gita teaches about confidence and self-belief."),
+        n("🙏 How do you overcome anger?", "Discover Krishna's teachings on controlling anger and finding peace."),
+        n("🌸 Is it difficult to move on?", "Explore the Gita's wisdom about acceptance and letting go.")
+      ] },
+      { id: 'GITA-TOPIC', name: 'Topic-based', kind: 'unset', when: 'Not set in the spec', who: 'Not set in the spec', opens: 'The relevant topic or suggested question, inside Gita Guide', key: ['gita_guide', 'id of the topic'], v: [
+        n("❤️ Why do relationships become difficult?", "Explore what the Bhagavad Gita teaches about love, expectations and understanding.", { tag: 'Relationships' }),
+        n("💼 Confused about your next step?", "Discover Krishna's teachings about work, duty and making decisions.", { tag: 'Career & Work' }),
+        n("🌿 Feeling stressed or overwhelmed?", "Explore Gita's teachings on managing worries and finding inner peace.", { tag: 'Stress & Worries' }),
+        n("✨ Lost your motivation?", "Discover what Lord Krishna teaches about taking action and staying strong.", { tag: 'Motivation' }),
+        n("💭 Facing a difficult decision?", "Ask Gita Guide and explore Krishna's wisdom for life's challenges.", { tag: 'Life Decisions' })
+      ] }
+    ]
+  },
+  {
+    id: 'wallpapers', name: 'Personalised Wallpapers', short: 'Wallpapers', cadence: 'Once a week, Saturday 11:00 AM',
+    purpose: "A devotional wallpaper suggestion once a week, addressed to the person by name.",
+    tap: 'The specific wallpaper named. General copy opens the wallpaper collection',
+    types: [
+      { id: 'WAL-DEITY', name: 'Deity wallpaper', kind: 'fixed', when: 'Once a week · Saturday 11:00 AM', who: ALL_USERS, opens: "That deity's specific wallpaper", key: ['wallpaper', 'id of the wallpaper'], v: [
+        n("🙏 {first_name}, bring Mahadev's blessings to your screen!", "Set this beautiful Lord Shiva wallpaper and keep Mahadev close to you.", { tag: 'Lord Shiva' }),
+        n("💙 {first_name}, a little Krishna love for your phone!", "Make this beautiful Krishna wallpaper your phone's background.", { tag: 'Lord Krishna' }),
+        n("🚩 {first_name}, keep Hanuman's blessings with you!", "Set this powerful Hanuman wallpaper on your phone today.", { tag: 'Lord Hanuman' }),
+        n("🌸 {first_name}, bring Maa Lakshmi to your home screen!", "Give your phone a divine look with this Goddess Lakshmi wallpaper.", { tag: 'Goddess Lakshmi' }),
+        n("🙏 {first_name}, start fresh with Ganpati Bappa!", "Set this beautiful Ganesha wallpaper and keep his blessings close.", { tag: 'Lord Ganesha' }),
+        n("🏹 {first_name}, keep Lord Rama close to your heart!", "Make this beautiful Lord Rama wallpaper your phone background.", { tag: 'Lord Rama' }),
+        n("🌺 {first_name}, feel the strength of Maa Durga!", "Set this divine Goddess Durga wallpaper on your phone.", { tag: 'Goddess Durga' })
+      ] },
+      { id: 'WAL-GEN', name: 'General wallpaper', kind: 'fixed', when: 'Once a week · Saturday 11:00 AM', who: ALL_USERS, opens: 'Wallpaper collection', key: ['wallpaper_collection', ''],
+        note: 'Shares the one weekly slot with the deity wallpapers: one wallpaper notification goes out per week.', v: [
+        n("✨ {first_name}, your phone needs a divine look!", "Discover beautiful God wallpapers and choose your favourite."),
+        n("💛 Which God would you like to see every day?", "Choose your favourite devotional wallpaper and set it on your screen."),
+        n("🌸 A beautiful blessing for your phone, {first_name}!", "Explore new devotional wallpapers and refresh your home screen."),
+        n("🙏 Keep your favourite God close, {first_name}!", "Find a beautiful God wallpaper for your phone today.")
+      ] }
+    ]
+  },
+  {
+    id: 'ringtones', name: 'Ringtones', cadence: 'Once every 2 weeks, Wednesday 6:00 PM',
+    purpose: 'A devotional ringtone suggestion once every two weeks.',
+    tap: 'The specific ringtone named in the notification',
+    types: [
+      { id: 'RING', name: 'Ringtone', kind: 'fixed', when: 'Once every 2 weeks · Wednesday 6:00 PM', who: ALL_USERS, opens: 'The specific ringtone named', key: ['ringtone', 'id of the ringtone'], v: [
+        n("📞 Give your calls a divine touch!", "Explore this beautiful Krishna ringtone for your phone.", { tag: 'Krishna' }),
+        n("🙏 Bring Hanuman's blessings to your calls!", "Set this Hanuman devotional ringtone as your caller tune.", { tag: 'Hanuman' }),
+        n("🎶 Love devotional music?", "Listen to this beautiful Shiva ringtone and make it yours.", { tag: 'Shiva' }),
+        n("🌸 A peaceful sound for every call!", "Try this beautiful Lakshmi devotional ringtone.", { tag: 'Lakshmi' }),
+        n("✨ Your favourite mantra can be your ringtone!", "Listen to this devotional ringtone and set it on your phone.", { tag: 'No ringtone named' }),
+        n("🎵 Time for a new ringtone?", "Give your phone a fresh sound with this beautiful devotional melody.", { tag: 'No ringtone named' }),
+        n("🔔 Let every call begin with a blessing!", "Try this Om Namah Shivaya ringtone on your phone.", { tag: 'Om Namah Shivaya' }),
+        n("💛 Make your phone sound special!", "Discover this divine devotional ringtone on Ekam.", { tag: 'No ringtone named' })
+      ] }
+    ]
+  }
+];
+
+/* ---------- derive everything else from the data ---------- */
+const ALL = [], BY_ID = {}, TYPE_BY_ID = {}, F_BY_ID = {};
+FEATURES.forEach((f, fi) => {
+  f.color = 'var(--s' + (fi + 1) + ')'; f.count = 0; F_BY_ID[f.id] = f;
+  f.types.forEach(ty => {
+    ty.f = f; TYPE_BY_ID[ty.id] = ty;
+    ty.v.forEach((x, i) => {
+      x.id = x.id || ty.id + '-' + (i + 1); x.ty = ty; x.f = f;
+      x.phs = Array.from(new Set(((x.t + ' ' + x.b).match(/\{(\w+)\}/g) || []).map(s => s.slice(1, -1))));
+      ALL.push(x); BY_ID[x.id] = x; f.count++;
+    });
+  });
+});
+const TYPES = FEATURES.reduce((a, f) => a.concat(f.types), []);
+const DAILY = TYPES.filter(t => t.daily);
+const MAXDAY = DAILY.length;
+const fname = f => f.short || f.name;
+
+/* ---------- views of the data ---------- */
+const DAY = [
+  ['6:30 AM', [['rashi', 'Your Day Begins', ''], ['mantras', 'Daily Mantra', '']], 'daily'],
+  ['7:00 AM', [['panchang', 'Daily Panchang', ''], ['greetings', 'Daily greeting', 'any time to 8:30 AM']], 'daily'],
+  ['11:00 AM', [['wallpapers', 'Wallpaper', 'Saturdays'], ['birth', 'Birth-details nudge', 'Day 2 and Day 5']], 'some'],
+  ['6:00 PM', [['ringtones', 'Ringtone', 'every 2nd Wednesday'], ['birth', 'Birth-details final reminder', 'Day 10']], 'some'],
+  ['7:00 PM', [['gita', 'Gita Guide question', 'Sundays'], ['mantras', 'Mantra Discovery', '1 or 2 days a week']], 'some']
+];
+const WEEK = [
+  ['Monday', 'Lord Shiva', []], ['Tuesday', 'Lord Hanuman', []],
+  ['Wednesday', 'Lord Ganesha', [['ringtones', 'Ringtone', '6:00 PM, alternate weeks']]],
+  ['Thursday', 'Lord Vishnu', []], ['Friday', 'Goddess Lakshmi', []],
+  ['Saturday', 'Lord Shani / Lord Hanuman', [['wallpapers', 'Wallpaper', '11:00 AM']]],
+  ['Sunday', 'Lord Surya', [['gita', 'Gita Guide question', '7:00 PM']]]
+];
+const JOURNEY = [
+  ['Day 2', '11:00 AM', 'birth', 'Birth-details nudge', 'Create curiosity'],
+  ['Day 3', 'time not set', 'gita', 'Gita Guide intro', 'First discovery'],
+  ['Day 5', '11:00 AM', 'birth', 'Birth-details nudge', 'Highlight the benefits'],
+  ['Day 7', 'time not set', 'gita', 'Gita Guide intro', 'Second discovery'],
+  ['Day 10', '6:00 PM', 'birth', 'Birth-details nudge', 'Final reminder']
+];
+const ICONS = {
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  zap: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  userplus: '<circle cx="10" cy="8" r="4"/><path d="M2 21c0-4 4-6 8-6s8 2 8 6M19 8v6M16 11h6"/>',
+  activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  book: '<path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
+  bell: '<path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7M10 20a2 2 0 0 0 4 0"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  check: '<path d="m5 12 5 5 9-10"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
+};
+const ic = k => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[k] + '</svg>';
+const KIND_ICON = { fixed: 'clock', event: 'zap', lifecycle: 'calendar', user: 'user', activity: 'activity', unset: 'help' };
+
+/* Per-feature look and the short lines shown on the page */
+const FX = {
+  panchang: { icon: 'calendar', when: 'Daily 7:00 AM + events', tap: 'Full Panchang', line: "Today's Panchang and its key timings." },
+  rashi: { icon: 'star', when: 'Daily 6:30 AM + events', tap: 'Rashi Phal', line: 'A personal read of the day, section by section.' },
+  birth: { icon: 'userplus', when: 'Day 2, 5 and 10', tap: 'Add Birth Details', line: 'Nudges to add birth details and unlock Rashi Phal.', rule: 'No personalised predictions, lucky hours, money matters or health guidance in this copy.' },
+  greetings: { icon: 'image', when: 'Every morning', tap: "The day's greeting image", line: 'A shareable greeting for the deity of the day.' },
+  mantras: { icon: 'music', when: 'Daily 6:30 AM + reminders', tap: 'The mantra or Japa', line: 'Daily mantra, Japa reminders and progress.' },
+  gita: { icon: 'book', when: 'Day 3, Day 7, then Sundays', tap: 'Gita Guide', line: 'Life questions answered through the Bhagavad Gita.' },
+  wallpapers: { icon: 'phone', when: 'Saturdays 11:00 AM', tap: 'The wallpaper', line: 'A weekly wallpaper suggestion, addressed by name.' },
+  ringtones: { icon: 'bell', when: 'Every 2nd Wednesday, 6:00 PM', tap: 'The ringtone', line: 'A devotional ringtone every two weeks.' }
+};
+const NOTE = { 'RP-DAY': "Send the variant that matches the person's outlook for the day." };
+const WHO = {};
+WHO[ALL_USERS] = '';
+WHO[WITH_BIRTH] = 'Birth details added';
+WHO[NO_BIRTH] = 'No birth details yet';
+WHO['Only users who switched it on'] = 'Opt-in only';
+WHO['Users who set a Japa reminder'] = 'Japa reminder set';
+WHO["Users who haven't explored specific mantras"] = "Hasn't explored mantras";
+WHO['Users with a Japa in progress'] = 'Japa in progress';
+WHO['Users who complete their Japa goal'] = 'Goal reached';
+WHO["Users who haven't used Gita Guide in the last 7 days"] = 'No Gita Guide use in 7 days';
+WHO['Not set in the spec'] = 'Audience not set';
+const who = s => (s in WHO ? WHO[s] : s);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const opensShort = ty => { const p = ty.opens.split(' · '); return cap(p.length > 1 ? p.slice(1).join(' · ') : ty.opens); };
+FEATURES.forEach(f => {
+  f.commonWho = f.types.every(t => t.who === f.types[0].who) ? f.types[0].who : null;
+  f.commonOpens = f.types.every(t => t.opens === f.types[0].opens);
+});
+
+const state = { kind: '', example: true, tab: 'overview', feature: FEATURES[0].id };
+
+const dot = f => '<i class="dot" style="background:' + f.color + '"></i>';
+const tile = (f, size) => '<i class="tile' + (size ? ' ' + size : '') + '" data-f="' + f.id + '" style="background:' + f.color + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[FX[f.id].icon] + '</svg></i>';
+const chip = (fid, label, sub) => '<span class="chip" title="' + esc(fname(F_BY_ID[fid])) + '">' + dot(F_BY_ID[fid]) + esc(label) + (sub ? ' <small>' + esc(sub) + '</small>' : '') + '</span>';
+function copyHtml(s) {
+  return esc(s).replace(/\{(\w+)\}/g, (m, k) => state.example && PH[k]
+    ? '<span class="ex" title="' + m + '">' + esc(PH[k][1]) + '</span>'
+    : '<span class="ph">' + m + '</span>');
+}
+
+/* ---------- overview ---------- */
+function renderTop() {
+  const added = ALL.filter(x => x.added).length;
+  $('#sub').textContent = ALL.length + ' notifications · ' + TYPES.length + ' types · ' + FEATURES.length + ' features' + (added ? ' · ' + added + ' added here' : '');
+  $('#foot').textContent = 'Spec as of ' + SPEC_DATE + ' · Copy is word for word from the specs · IDs and placeholder names were added for this page';
+  const tiles = [['Notifications', ALL.length, added ? added + ' added here' : ''], ['Types', TYPES.length, ''], ['Features', FEATURES.length, ''], ['Most in one day', MAXDAY, 'per person · no cap set']];
+  $('#k-overview').innerHTML = tiles.map(t => '<div class="kpi"><span class="k">' + t[0] + '</span><span class="v">' + t[1] + '</span>' + (t[2] ? '<span class="n">' + t[2] + '</span>' : '') + '</div>').join('');
+  $('#note').innerHTML = added ? '<b>' + added + '</b> new · <button type="button" class="lnk" id="export-new">Export new (CSV)</button>' : '';
+}
+function renderFeatureCards() {
+  $('#fcards').innerHTML = FEATURES.map(f => '<button type="button" class="fcard" data-go="' + f.id + '"><span class="fc-top">' + tile(f) + '<span class="fc-n">' + f.count + '</span></span><span class="fc-name">' + esc(fname(f)) + '</span><span class="fc-sub">' + esc(FX[f.id].when) + '</span><span class="fc-tap">' + ic('arrow') + esc(FX[f.id].tap) + '</span></button>').join('');
+}
+function renderDay() {
+  const rows = DAY.map(s => '<div class="slot"><div class="tm">' + s[0] + '</div><div class="chipset">' + s[1].map(i => chip(i[0], i[1], i[2])).join('') + '</div>' + (s[2] === 'daily' ? '<span class="flag"><i style="background:var(--serious)"></i>Clash every day</span>' : '<span class="flag"><i style="background:var(--warn)"></i>Can overlap</span>') + '</div>');
+  const vary = FEATURES.map(f => {
+    const ts = f.types.filter(t => t.kind === 'event' || t.kind === 'user' || t.kind === 'activity');
+    return ts.length ? '<div class="vrow"><span class="grp-l">' + esc(fname(f)) + '</span>' + ts.map(t => chip(f.id, t.name, '')).join('') + '</div>' : '';
+  }).join('');
+  rows.push('<div class="slot"><div class="tm txt">Time changes daily</div><div>' + vary + '</div></div>');
+  $('#agenda').innerHTML = rows.join('');
+}
+function renderWeek() {
+  $('#week-grid').innerHTML = WEEK.map(d => '<div class="day"><span class="dn">' + d[0] + '</span><span class="dg">' + esc(d[1]) + '</span>' + d[2].map(x => chip(x[0], x[1], x[2])).join('') + '</div>').join('');
+}
+function renderJourney() {
+  $('#steps').innerHTML = JOURNEY.map(s => '<div class="step"><span class="st-top">' + tile(F_BY_ID[s[2]], 'sm') + '<span class="d">' + s[0] + '</span><span class="w">' + esc(s[1]) + '</span></span><span class="nm">' + esc(s[3]) + '</span><span class="o">' + esc(s[4]) + '</span></div>').join('');
+}
+
+/* ---------- notifications ---------- */
+function pushCard(x) {
+  return '<article class="push" data-id="' + esc(x.id) + '"><div class="push-top">' + tile(x.f, 'sm') + '<span>Ekam</span>' + (x.tag ? '<span class="tag">' + esc(x.tag) + '</span>' : '') + (x.added ? '<span class="tag new">New</span>' : '') + '</div><div class="push-t">' + copyHtml(x.t) + '</div><div class="push-b">' + copyHtml(x.b) + '</div><div class="push-f"><code>' + esc(x.id) + (x.by ? ' · ' + esc(x.by) : '') + '</code><span class="acts">' +
+    (x.added ? '<button type="button" class="copy" data-edit="' + esc(x.id) + '" title="Edit" aria-label="Edit">' + ic('edit') + '</button><button type="button" class="copy" data-del="' + esc(x.id) + '" title="Delete" aria-label="Delete">' + ic('trash') + '</button>' : '') +
+    '<button type="button" class="copy" data-copy="' + esc(x.id) + '" title="Copy title and body" aria-label="Copy title and body">' + ic('copy') + '</button></span></div></article>';
+}
+function typeBlock(ty) {
+  const w = !ty.f.commonWho && who(ty.who);
+  return '<div class="type" id="t-' + ty.id + '"><div class="type-h"><h3>' + esc(ty.name) + '</h3><span class="m" title="' + KINDS[ty.kind] + '">' + ic(KIND_ICON[ty.kind]) + esc(ty.when) + '</span>' + (w ? '<span class="m">' + ic('user') + esc(w) + '</span>' : '') + (ty.f.commonOpens ? '' : '<span class="m">' + ic('arrow') + esc(opensShort(ty)) + '</span>') + '</div>' + (NOTE[ty.id] ? '<p class="note">' + esc(NOTE[ty.id]) + '</p>' : '') + '<div class="pushes">' + ty.v.map(pushCard).join('') + '</div></div>';
+}
+function renderCatalogue() {
+  $('#pick').innerHTML = '<button type="button" class="all" data-f="">All <span class="c">' + ALL.length + '</span></button>' + FEATURES.map(f => '<button type="button" data-f="' + f.id + '">' + tile(f, 'sm') + esc(fname(f)) + ' <span class="c">' + f.count + '</span></button>').join('');
+  $('#cat').innerHTML = FEATURES.map(f => {
+    const fx = FX[f.id], cw = f.commonWho && who(f.commonWho);
+    return '<section class="feature" id="f-' + f.id + '" data-f="' + f.id + '"><div class="fhead">' + tile(f, 'lg') + '<div><h2>' + esc(f.name) + ' <small>' + plural(f.count, 'notification') + '</small></h2><p class="lead">' + esc(fx.line) + '</p></div></div>' +
+      '<div class="fmeta"><span class="m">' + ic('arrow') + 'Tap opens: ' + esc(f.tap) + '</span>' + (cw ? '<span class="m">' + ic('user') + esc(cw) + '</span>' : '') + '</div>' +
+      (fx.rule ? '<p class="rule">' + esc(fx.rule) + '</p>' : '') + f.types.map(typeBlock).join('') + '</section>';
+  }).join('');
+}
+
+/* ---------- schedule ---------- */
+function renderSchedule() {
+  $('#f-kind').innerHTML = '<button type="button" class="btn on" data-kind="">All <span class="c">' + TYPES.length + '</span></button>' + Object.keys(KINDS).map(k => '<button type="button" class="btn" data-kind="' + k + '">' + ic(KIND_ICON[k]) + KINDS[k] + ' <span class="c">' + TYPES.filter(t => t.kind === k).length + '</span></button>').join('');
+  $('#t-sched thead').innerHTML = '<tr><th>Notification</th><th>When</th><th>Who gets it</th><th>Tap opens</th><th class="num">Copy</th></tr>';
+  $('#t-sched tbody').innerHTML = FEATURES.map(f => '<tr class="grp" data-f="' + f.id + '"><td colspan="5">' + dot(f) + esc(f.name) + '</td></tr>' + f.types.map(t => '<tr data-f="' + f.id + '" data-ty="' + t.id + '"><td class="nw"><button type="button" class="lnk" data-type="' + t.id + '">' + esc(t.name) + '</button></td><td><span class="m" title="' + KINDS[t.kind] + '">' + ic(KIND_ICON[t.kind]) + esc(t.when) + '</span></td><td>' + esc(who(t.who) || 'Everyone') + '</td><td>' + esc(t.opens) + '</td><td class="num">' + t.v.length + '</td></tr>').join('')).join('');
+}
+
+/* ---------- filters, tabs, actions ---------- */
+function applyFilter() {
+  $$('#cat .feature').forEach(el => { el.hidden = !!state.feature && state.feature !== el.dataset.f; });
+  $$('#pick button').forEach(b => b.setAttribute('aria-pressed', b.dataset.f === state.feature ? 'true' : 'false'));
+  $$('#t-sched tbody tr[data-ty]').forEach(tr => { tr.hidden = !!state.kind && TYPE_BY_ID[tr.dataset.ty].kind !== state.kind; });
+  $$('#t-sched tbody tr.grp').forEach(tr => { tr.hidden = !$('#t-sched tbody tr[data-ty][data-f="' + tr.dataset.f + '"]:not([hidden])'); });
+}
+
+function stick() { document.documentElement.style.setProperty('--stick', ($('#bar-top').offsetHeight + 14) + 'px'); }
+
+function setTab(t, keepScroll) {
+  if (!$('.tabpanel[data-panel="' + t + '"]')) t = 'overview';
+  state.tab = t;
+  $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
+  $$('.tabpanel[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== t; });
+  try { history.replaceState(null, '', '#' + t); } catch (e) {}
+  if (!keepScroll) window.scrollTo(0, 0);
+}
+function showFeature(id, typeId) {
+  state.feature = id;
+  applyFilter(); setTab('notifications', !!typeId);
+  if (typeId) { stick(); const el = document.getElementById('t-' + typeId); if (el) el.scrollIntoView({ block: 'start' }); }
+}
+
+function copyText(s) {
+  const fallback = () => { const ta = document.createElement('textarea'); ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); return Promise.resolve(); };
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(s).catch(fallback);
+  return fallback();
+}
+/* ---------- notifications the team adds on this page ---------- */
+const STORE_KEY = 'ekam-notifications-added-v1';
+const PREFIX = { panchang: 'PAN', rashi: 'RP', birth: 'RPO', greetings: 'GRT', mantras: 'MAN', gita: 'GITA', wallpapers: 'WAL', ringtones: 'RING' };
+let store = { types: [], items: [] }, storeOk = true, editing = null, lastField = null;
+
+function loadStore() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (d && Array.isArray(d.items)) store = { types: Array.isArray(d.types) ? d.types : [], items: d.items };
+  } catch (e) { storeOk = false; }
+}
+function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); storeOk = true; } catch (e) { storeOk = false; } return storeOk; }
+const phsOf = s => Array.from(new Set((s.match(/\{(\w+)\}/g) || []).map(k => k.slice(1, -1))));
+
+function addType(def) {
+  const f = F_BY_ID[def.fid]; if (!f) return null;
+  if (TYPE_BY_ID[def.id]) return TYPE_BY_ID[def.id];
+  const ty = { id: def.id, name: def.name, kind: KINDS[def.kind] ? def.kind : 'unset', when: def.when || 'Not set', who: ALL_USERS, opens: def.opens || f.tap, key: ['', ''], v: [], f: f, addedType: true };
+  f.types.push(ty); TYPES.push(ty); TYPE_BY_ID[ty.id] = ty;
+  return ty;
+}
+function addVariant(rec) {
+  const ty = TYPE_BY_ID[rec.typeId]; if (!ty || BY_ID[rec.id]) return null;
+  const x = { id: rec.id, t: rec.t, b: rec.b, tag: rec.tag || '', by: rec.by || '', at: rec.at || '', added: true, ty: ty, f: ty.f, phs: phsOf(rec.t + ' ' + rec.b) };
+  ty.v.push(x); ALL.push(x); BY_ID[x.id] = x; ty.f.count++;
+  return x;
+}
+function removeVariant(id) {
+  const x = BY_ID[id]; if (!x || !x.added) return;
+  x.ty.v.splice(x.ty.v.indexOf(x), 1); ALL.splice(ALL.indexOf(x), 1); delete BY_ID[id]; x.f.count--;
+  store.items = store.items.filter(r => r.id !== id);
+  if (x.ty.addedType && !x.ty.v.length) {
+    const ty = x.ty;
+    ty.f.types.splice(ty.f.types.indexOf(ty), 1); TYPES.splice(TYPES.indexOf(ty), 1); delete TYPE_BY_ID[ty.id];
+    store.types = store.types.filter(d => d.id !== ty.id);
+  }
+}
+function refreshAll() {
+  FEATURES.forEach(f => {
+    f.commonWho = f.types.every(t => t.who === f.types[0].who) ? f.types[0].who : null;
+    f.commonOpens = f.types.every(t => t.opens === f.types[0].opens);
+  });
+  renderTop(); renderFeatureCards(); renderDay(); renderCatalogue(); renderSchedule();
+  $$('#f-kind .btn').forEach(b => b.classList.toggle('on', b.dataset.kind === state.kind));
+  applyFilter();
+}
+
+/* the form */
+function syncNewType() {
+  const isNew = $('#nf-type').value === '__new';
+  $('#nf-newtype').hidden = !isNew;
+  $('#nf-tname').required = isNew; $('#nf-twhen').required = isNew;
+}
+function typeOptions(fid, sel) {
+  $('#nf-type').innerHTML = F_BY_ID[fid].types.map(t => '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>').join('') + '<option value="__new">+ New type</option>';
+  if (sel) $('#nf-type').value = sel;
+  syncNewType();
+}
+function drawPreview() {
+  const f = F_BY_ID[$('#nf-feature').value], t = $('#nf-title').value, b = $('#nf-body').value, tag = $('#nf-tag').value.trim();
+  $('#nf-preview').innerHTML = '<article class="push"><div class="push-top">' + tile(f, 'sm') + '<span>Ekam</span>' + (tag ? '<span class="tag">' + esc(tag) + '</span>' : '') + '</div><div class="push-t">' + (t ? copyHtml(t) : '<span class="ghost">Title</span>') + '</div><div class="push-b">' + (b ? copyHtml(b) : '<span class="ghost">Body</span>') + '</div></article>';
+  $('#nf-tc').textContent = t.length; $('#nf-bc').textContent = b.length;
+}
+function openForm(x) {
+  editing = x || null;
+  $('#dlg-h').textContent = x ? 'Edit notification' : 'New notification';
+  $('#nf-save').textContent = x ? 'Save changes' : 'Save notification';
+  const fid = x ? x.f.id : (state.feature || FEATURES[0].id);
+  $('#nf-feature').value = fid; typeOptions(fid, x ? x.ty.id : null);
+  $('#nf-feature').disabled = !!x; $('#nf-type').disabled = !!x;
+  $('#nf-title').value = x ? x.t : ''; $('#nf-body').value = x ? x.b : ''; $('#nf-tag').value = x ? x.tag : '';
+  let by = ''; try { by = localStorage.getItem(STORE_KEY + '-by') || ''; } catch (e) {}
+  $('#nf-by').value = x ? x.by : by;
+  $('#nf-tname').value = ''; $('#nf-twhen').value = ''; $('#nf-topens').value = ''; $('#nf-tkind').value = 'fixed';
+  $('#nf-hint').textContent = storeOk ? 'Saved in this browser only. Use Export to share it.' : 'This browser is blocking storage, so it will not be kept after a reload.';
+  lastField = null; drawPreview();
+  const d = $('#dlg'); if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  $('#nf-title').focus();
+}
+function closeForm() { const d = $('#dlg'); if (d.close) d.close(); else d.removeAttribute('open'); }
+function insertPh(k) {
+  const el = lastField || $('#nf-body'), txt = '{' + k + '}';
+  const s = el.selectionStart == null ? el.value.length : el.selectionStart, e2 = el.selectionEnd == null ? s : el.selectionEnd;
+  el.value = el.value.slice(0, s) + txt + el.value.slice(e2);
+  el.focus(); el.selectionStart = el.selectionEnd = s + txt.length;
+  drawPreview();
+}
+function saveForm() {
+  const t = $('#nf-title').value.trim(), b = $('#nf-body').value.trim(), tag = $('#nf-tag').value.trim(), by = $('#nf-by').value.trim();
+  if (!t || !b) return;
+  try { localStorage.setItem(STORE_KEY + '-by', by); } catch (e) {}
+  let x;
+  if (editing) {
+    x = editing; x.t = t; x.b = b; x.tag = tag; x.by = by; x.phs = phsOf(t + ' ' + b);
+    const r = store.items.filter(i => i.id === x.id)[0]; if (r) { r.t = t; r.b = b; r.tag = tag; r.by = by; }
+  } else {
+    const fid = $('#nf-feature').value; let typeId = $('#nf-type').value;
+    if (typeId === '__new') {
+      const name = $('#nf-tname').value.trim(); if (!name) return;
+      const base = PREFIX[fid] + '-' + (name.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'NEW');
+      let tid = base, k = 2; while (TYPE_BY_ID[tid]) tid = base + (k++);
+      const def = { id: tid, fid: fid, name: name, when: $('#nf-twhen').value.trim(), opens: $('#nf-topens').value.trim(), kind: $('#nf-tkind').value };
+      addType(def); store.types.push(def); typeId = tid;
+    }
+    const ty = TYPE_BY_ID[typeId]; let nn = ty.v.length + 1, id = ty.id + '-' + nn;
+    while (BY_ID[id]) id = ty.id + '-' + (++nn);
+    const rec = { id: id, typeId: typeId, t: t, b: b, tag: tag, by: by, at: new Date().toISOString().slice(0, 10) };
+    x = addVariant(rec); store.items.push(rec);
+  }
+  saveStore(); state.feature = x.f.id; closeForm(); refreshAll(); setTab('notifications', true);
+  const el = $('#cat .push[data-id="' + x.id + '"]');
+  if (el) { stick(); el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); }
+}
+function exportNew() {
+  const rows = ALL.filter(x => x.added).map(x => ({ id: x.id, feature: x.f.name, type: x.ty.name, when: x.ty.when, tap_opens: x.ty.opens, title: x.t, body: x.b, note: x.tag, written_by: x.by, added_on: x.at }));
+  if (!rows.length) return;
+  const cols = Object.keys(rows[0]), cell = s => '"' + String(s).replace(/"/g, '""') + '"';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + [cols.join(',')].concat(rows.map(r => cols.map(c => cell(r[c])).join(','))).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'ekam-new-notifications.csv'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+
+function init() {
+  loadStore(); store.types.forEach(addType); store.items.forEach(addVariant);
+  $('#nf-feature').innerHTML = FEATURES.map(f => '<option value="' + f.id + '">' + esc(f.name) + '</option>').join('');
+  $('#nf-tkind').innerHTML = Object.keys(KINDS).filter(k => k !== 'unset').map(k => '<option value="' + k + '">' + KINDS[k] + '</option>').join('');
+  $('#nf-phs').innerHTML = Object.keys(PH).map(k => '<button type="button" data-ph="' + k + '" title="' + esc(PH[k][0]) + '">{' + k + '}</button>').join('');
+  renderWeek(); renderJourney(); refreshAll();
+
+  document.addEventListener('click', e => {
+    const t = e.target;
+    const tab = t.closest('#tabs button'); if (tab) { setTab(tab.dataset.tab); return; }
+    if (t.closest('#add-btn')) { openForm(); return; }
+    if (t.closest('#nf-cancel') || t.closest('#nf-close')) { closeForm(); return; }
+    const ph = t.closest('[data-ph]'); if (ph) { insertPh(ph.dataset.ph); return; }
+    const go = t.closest('[data-go]'); if (go) { showFeature(go.dataset.go); return; }
+    const pk = t.closest('#pick button'); if (pk) { state.feature = pk.dataset.f; applyFilter(); return; }
+    const ty = t.closest('[data-type]'); if (ty) { showFeature(TYPE_BY_ID[ty.dataset.type].f.id, ty.dataset.type); return; }
+    const kind = t.closest('#f-kind .btn'); if (kind) { state.kind = kind.dataset.kind; $$('#f-kind .btn').forEach(b => b.classList.toggle('on', b === kind)); applyFilter(); return; }
+    const mode = t.closest('#f-mode button'); if (mode) { state.example = mode.dataset.mode === 'ex'; $$('#f-mode button').forEach(b => b.classList.toggle('on', b === mode)); renderCatalogue(); applyFilter(); return; }
+    const ed = t.closest('[data-edit]'); if (ed) { openForm(BY_ID[ed.dataset.edit]); return; }
+    const del = t.closest('[data-del]');
+    if (del) { if (window.confirm('Delete this notification?')) { removeVariant(del.dataset.del); saveStore(); refreshAll(); } return; }
+    if (t.closest('#export-new')) { exportNew(); return; }
+    const cp = t.closest('[data-copy]');
+    if (cp) { const x = BY_ID[cp.dataset.copy]; copyText(x.t + '\n' + x.b).then(() => { cp.innerHTML = ic('check'); setTimeout(() => { cp.innerHTML = ic('copy'); }, 1200); }); }
+  });
+  $('#nf').addEventListener('submit', e => { e.preventDefault(); saveForm(); });
+  $('#nf').addEventListener('input', drawPreview);
+  $('#nf-feature').addEventListener('change', () => { typeOptions($('#nf-feature').value); drawPreview(); });
+  $('#nf-type').addEventListener('change', syncNewType);
+  ['#nf-title', '#nf-body'].forEach(s => $(s).addEventListener('focus', e => { lastField = e.target; }));
+  window.addEventListener('resize', stick);
+
+  setTab((location.hash || '').replace('#', '') || 'overview', true);
+  stick();
+}
+init();
+})();
+</script>
+</body>
+</html>
