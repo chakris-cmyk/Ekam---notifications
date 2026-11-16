@@ -9,6 +9,7 @@
     --bg: #f5f6f8; --panel: #fff; --fg: #16202a; --muted: #5c6977; --line: #dde2e8; --grid: #eceff3;
     --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
     --ink4: #0b0b0b; --warn: #fab219; --serious: #ec835a; --ph: #e6eefb; --ph-line: #c5d6f3;
+    --r1: #16202a; --r2: #5c6977; --r3: #8793a0;
     --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; --serif: Georgia, "Times New Roman", serif;
     color-scheme: light;
   }
@@ -16,13 +17,13 @@
     :root:not([data-theme="light"]) {
       --bg: #12161c; --panel: #1a2029; --fg: #e8ecf1; --muted: #9aa6b4; --line: #2c3541; --grid: #242c36;
       --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767;
-      --ink4: #fff; --ph: #22314a; --ph-line: #34486b; color-scheme: dark;
+      --ink4: #fff; --ph: #22314a; --ph-line: #34486b; --r1: #e8ecf1; --r2: #9aa6b4; --r3: #647080; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12161c; --panel: #1a2029; --fg: #e8ecf1; --muted: #9aa6b4; --line: #2c3541; --grid: #242c36;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767;
-    --ink4: #fff; --ph: #22314a; --ph-line: #34486b; color-scheme: dark;
+    --ink4: #fff; --ph: #22314a; --ph-line: #34486b; --r1: #e8ecf1; --r2: #9aa6b4; --r3: #647080; color-scheme: dark;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -103,6 +104,18 @@
   .step .w { font-size: 11.5px; color: var(--muted); margin-left: auto; }
   .step .nm { font-size: 13px; font-weight: 600; }
   .step .o { font-size: 12px; color: var(--muted); }
+  .reach-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+  .reach-h b { color: var(--fg); font-variant-numeric: tabular-nums; }
+  .segbar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; }
+  .segbar i { min-width: 4px; }
+  .reach { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .rr { display: grid; grid-template-columns: 190px 2.2em 1fr; gap: 2px 12px; align-items: baseline; }
+  .rn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .rv { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rd { color: var(--muted); font-size: 12.5px; }
+  #t-perday th .dot { margin-right: 6px; }
+  #t-perday td small { display: block; font-size: 11px; color: var(--muted); }
+  #t-perday td.tot { font-weight: 600; }
 
   /* Notifications */
   .pick { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -193,7 +206,8 @@
   }
   @media (max-width: 560px) {
     .slot { grid-template-columns: 88px 1fr; } .slot .flag { grid-column: 2; justify-self: start; }
-    .slot .chip { flex-wrap: wrap; row-gap: 0; border-radius: 10px; } .slot .chip small { flex-basis: 100%; margin-left: 15px; }
+    .slot .chip, #ontop .chip { flex-wrap: wrap; row-gap: 0; border-radius: 10px; } .slot .chip small, #ontop .chip small { flex-basis: 100%; margin-left: 15px; }
+    .rr { grid-template-columns: 1fr auto; } .rd { grid-column: 1 / -1; margin-left: 17px; }
   }
   @media (max-width: 480px) { header h1 { font-size: 1.6rem; } .kpi .v { font-size: 1.4rem; } }
   @media print {
@@ -224,6 +238,12 @@
     <section>
       <h2>Features</h2>
       <div class="fcards" id="fcards"></div>
+    </section>
+    <section>
+      <h2>Sent each day <small>the most one person can get · one send per type</small></h2>
+      <div class="card" id="reach"></div>
+      <div class="tw"><table id="t-perday" aria-label="Notifications sent on each day of the week, by feature"><thead></thead><tbody></tbody></table></div>
+      <div class="chipset" id="ontop"></div>
     </section>
     <section>
       <h2>A day <small>what goes out, and when</small></h2>
@@ -598,7 +618,6 @@ FEATURES.forEach((f, fi) => {
 });
 const TYPES = FEATURES.reduce((a, f) => a.concat(f.types), []);
 const DAILY = TYPES.filter(t => t.daily);
-const MAXDAY = DAILY.length;
 const fname = f => f.short || f.name;
 
 /* ---------- views of the data ---------- */
@@ -622,6 +641,20 @@ const JOURNEY = [
   ['Day 5', '11:00 AM', 'birth', 'Birth-details nudge', 'Highlight the benefits'],
   ['Day 7', 'time not set', 'gita', 'Gita Guide intro', 'Second discovery'],
   ['Day 10', '6:00 PM', 'birth', 'Birth-details nudge', 'Final reminder']
+];
+/* Who gets the daily types: [label, colour, test] */
+const REACH = [
+  ['Everyone', 'var(--r1)', t => t.who === ALL_USERS],
+  ['Birth details added', 'var(--r2)', t => t.who === WITH_BIRTH],
+  ['Only if switched on', 'var(--r3)', t => t.who !== ALL_USERS && t.who !== WITH_BIRTH]
+];
+/* Sends with no fixed weekday, so they are left out of the per-day counts */
+const ONTOP = [
+  ['mantras', 'Mantra Discovery', '1 or 2 evenings a week, day not set'],
+  ['birth', 'Birth-details nudge', 'Day 2, 5 and 10 after signup'],
+  ['gita', 'Gita Guide intro', 'Day 3 and Day 7 after signup'],
+  ['mantras', 'Japa Progress and Completion', 'follows in-app activity'],
+  ['gita', 'Topic-based question', 'timing not set']
 ];
 const ICONS = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -693,7 +726,8 @@ function renderTop() {
   const added = ALL.filter(x => x.added).length;
   $('#sub').textContent = ALL.length + ' notifications · ' + TYPES.length + ' types · ' + FEATURES.length + ' features' + (added ? ' · ' + added + ' added here' : '');
   $('#foot').textContent = 'Spec as of ' + SPEC_DATE + ' · Copy is word for word from the specs · IDs and placeholder names were added for this page';
-  const tiles = [['Notifications', ALL.length, added ? added + ' added here' : ''], ['Types', TYPES.length, ''], ['Features', FEATURES.length, ''], ['Most in one day', MAXDAY, 'per person · no cap set']];
+  const days = perDay(), top = Math.max.apply(null, days.map(d => d.total));
+  const tiles = [['Notifications', ALL.length, added ? added + ' added here' : ''], ['Types', TYPES.length, ''], ['Features', FEATURES.length, ''], ['Sent every day', DAILY.length, 'per person, at most · no cap set'], ['Busiest days', top, days.filter(d => d.total === top).map(d => d.day.slice(0, 3)).join(', ')]];
   $('#k-overview').innerHTML = tiles.map(t => '<div class="kpi"><span class="k">' + t[0] + '</span><span class="v">' + t[1] + '</span>' + (t[2] ? '<span class="n">' + t[2] + '</span>' : '') + '</div>').join('');
   $('#note').innerHTML = added ? '<b>' + added + '</b> new · <button type="button" class="lnk" id="export-new">Export new (CSV)</button>' : '';
 }
@@ -714,6 +748,35 @@ function renderWeek() {
 }
 function renderJourney() {
   $('#steps').innerHTML = JOURNEY.map(s => '<div class="step"><span class="st-top">' + tile(F_BY_ID[s[2]], 'sm') + '<span class="d">' + s[0] + '</span><span class="w">' + esc(s[1]) + '</span></span><span class="nm">' + esc(s[3]) + '</span><span class="o">' + esc(s[4]) + '</span></div>').join('');
+}
+
+/* ---------- sent each day ---------- */
+/* Per person, at most. One send per type: a type's copy variants are alternatives, not extra sends. */
+function perDay() {
+  return WEEK.map(d => {
+    const by = {}, sub = {};
+    DAILY.forEach(t => { by[t.f.id] = (by[t.f.id] || 0) + 1; });
+    d[2].forEach(x => { by[x[0]] = (by[x[0]] || 0) + 1; sub[x[0]] = x[2]; });
+    return { day: d[0], by: by, sub: sub, total: DAILY.length + d[2].length };
+  });
+}
+function renderPerDay() {
+  const groups = REACH.map(g => ({ name: g[0], color: g[1], ts: DAILY.filter(g[2]) })).filter(g => g.ts.length);
+  const detail = ts => FEATURES.map(f => {
+    const own = ts.filter(t => t.f === f);
+    return own.length > 2 ? fname(f) + ' ' + own.length : own.map(t => t.name).join(' · ');
+  }).filter(Boolean).join(' · ');
+  $('#reach').innerHTML = '<div class="reach-h"><h3>Every day</h3><span class="m">up to <b>' + DAILY.length + '</b> per person</span></div>' +
+    '<div class="segbar" role="img" aria-label="' + esc(groups.map(g => g.name + ' ' + g.ts.length).join(', ')) + '">' + groups.map(g => '<i style="flex:' + g.ts.length + ';background:' + g.color + '" title="' + esc(g.name + ': ' + g.ts.length) + '"></i>').join('') + '</div>' +
+    '<div class="reach">' + groups.map((g, i) => '<div class="rr"><span class="rn"><i class="dot" style="background:' + g.color + '"></i>' + esc(g.name) + '</span><span class="rv">' + (i ? '+' : '') + g.ts.length + '</span><span class="rd">' + esc(detail(g.ts)) + '</span></div>').join('') + '</div>';
+  const rows = perDay(), cols = FEATURES.filter(f => rows.some(r => r.by[f.id]));
+  $('#t-perday thead').innerHTML = '<tr><th>Day</th><th class="num">Total</th>' + cols.map(f => '<th class="num">' + dot(f) + esc(fname(f)) + '</th>').join('') + '</tr>';
+  $('#t-perday tbody').innerHTML = rows.map(r => '<tr><td class="nw">' + r.day + '</td><td class="num tot">' + r.total + '</td>' + cols.map(f => {
+    const k = r.by[f.id];
+    if (!k) return '<td class="num mut">–</td>';
+    return '<td class="num">' + (f.id in r.sub ? '<b>' + k + '</b><small>' + esc(r.sub[f.id]) + '</small>' : k) + '</td>';
+  }).join('') + '</tr>').join('');
+  $('#ontop').innerHTML = '<span class="grp-l">Not in these counts</span>' + ONTOP.map(x => chip(x[0], x[1], x[2])).join('');
 }
 
 /* ---------- notifications ---------- */
@@ -814,7 +877,7 @@ function refreshAll() {
     f.commonWho = f.types.every(t => t.who === f.types[0].who) ? f.types[0].who : null;
     f.commonOpens = f.types.every(t => t.opens === f.types[0].opens);
   });
-  renderTop(); renderFeatureCards(); renderDay(); renderCatalogue(); renderSchedule();
+  renderTop(); renderFeatureCards(); renderPerDay(); renderDay(); renderCatalogue(); renderSchedule();
   $$('#f-kind .btn').forEach(b => b.classList.toggle('on', b.dataset.kind === state.kind));
   applyFilter();
 }
