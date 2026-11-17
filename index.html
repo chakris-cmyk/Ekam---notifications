@@ -330,7 +330,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const n = (t, b, o) => Object.assign({ t: t, b: b }, o || {});
 const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
 
-const SPEC_DATE = '16 Nov 2026';
+const SPEC_DATE = '17 Nov 2026';
 const KINDS = { fixed: 'Fixed time', event: 'Event-based', lifecycle: 'Days since signup', user: 'User-set time', activity: 'In-app activity', unset: 'Timing not set' };
 
 /* Placeholder: [what it is filled with, example value] */
@@ -347,7 +347,7 @@ const PH = {
   sunset_time: ["Today's sunset time", '5:41 PM'],
   lucky_hour_start: ["Start of the person's Lucky Hour", '10:15 AM'],
   lucky_hour_end: ["End of the person's Lucky Hour", '11:15 AM'],
-  go_gentle_start: ['Start of the Go Gentle period', '3:00 PM'],
+  be_careful_start: ['Start of the Be Careful period', '3:00 PM'],
   deity_name: ["Deity of today's mantra", 'Shiva'],
   mantra_name: ["Name of today's mantra", 'Gayatri Mantra'],
   japa_name: ['The Japa the person selected', 'Om Namah Shivaya'],
@@ -422,11 +422,11 @@ const FEATURES = [
         n("💰 Your money hour is here!", "Financial matters look positive during this period. Check your favourable timings."),
         n("✨ A good time to review your finances!", "Your Money Matters hour is approaching. Check what your Rashi says.")
       ] },
-      { id: 'RP-GENTLE', name: 'Go Gentle (be careful)', kind: 'event', daily: true, before: true, when: 'Before a period that needs extra care', who: WITH_BIRTH, opens: 'Rashi Phal · Go Gentle highlighted', key: ['rashi_phal', 'go_gentle'], v: [
-        n("⚠️ Take it a little easy around {go_gentle_start}", "This period needs extra patience. Avoid rushing into important decisions."),
-        n("🙏 A little care can make a difference", "Be careful with your words and decisions during this time."),
-        n("🌸 Slow down a little, {first_name}", "Things may need extra attention now. Stay calm and avoid unnecessary risks."),
-        n("⚠️ Not the best time to rush!", "Take your time with important decisions and conversations. Check your Rashi Phal.")
+      { id: 'RP-GENTLE', name: 'Be Careful', kind: 'event', daily: true, before: true, when: 'Before a period that needs extra care', who: WITH_BIRTH, opens: 'Rashi Phal · Be Careful highlighted', key: ['rashi_phal', 'go_gentle'], v: [
+        n("⚠️ Keep your afternoon calm", "Around {be_careful_start}, take a moment before making important decisions. There's no need to rush."),
+        n("🙏 Choose your words with care", "A little patience can make things easier. Think before you speak or make decisions."),
+        n("🌸 Slow down a little, {first_name}", "Take things one step at a time. Stay calm and avoid unnecessary risks."),
+        n("⚠️ There's no need to hurry!", "Take your time with important decisions and conversations. Check your Rashi Phal.")
       ] },
       { id: 'RP-HEALTH', name: 'Health', kind: 'event', daily: true, before: true, when: 'Before the relevant health guidance period', who: WITH_BIRTH, opens: 'Rashi Phal · Health highlighted', key: ['rashi_phal', 'health'], v: [
         n("💚 Take care of your health today", "Give yourself some time to rest. Don't ignore your health or skip your routine."),
